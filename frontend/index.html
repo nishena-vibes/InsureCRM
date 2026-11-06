@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InsureCRM</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <header class="topbar">
+        <div class="container topbar-inner">
+            <div>
+                <h1>InsureCRM</h1>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-label">Всего клиентов</span>
+                <strong class="stat-value" id="statClients">0</strong>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Актуальные / Всего полисов</span>
+                <strong class="stat-value" id="statPolicies">0</strong>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Собрано премий</span>
+                <strong class="stat-value text-success" id="statRevenue">0 ₽</strong>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Выплачено по убыткам</span>
+                <strong class="stat-value text-danger" id="statPayouts">0 ₽</strong>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Прибыль</span>
+                <strong class="stat-value" id="statProfit">0 ₽</strong>
+            </div>
+        </section>
+
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="tab-all">Все таблицы</button>
+            <button class="tab-btn" data-tab="tab-clients">1. Клиенты</button>
+            <button class="tab-btn" data-tab="tab-policies">2. Полисы</button>
+            <button class="tab-btn" data-tab="tab-claims">3. Выплаты</button>
+        </nav>
+
+        <!-- СЕКЦИЯ 1: КЛИЕНТЫ -->
+        <section class="panel tab-section" id="sec-clients">
+            <div class="panel-header">
+                <h2>1. Таблица Клиентов</h2>
+                <input type="search" id="searchClient" placeholder="Поиск по ФИО или ИНН..." class="filter-input">
+            </div>
+            <form id="clientForm" class="inline-form">
+                <input type="text" id="c_name" placeholder="ФИО клиента" required>
+                <input type="text" id="c_tax" placeholder="ИНН (10–12 цифр)" pattern="\d{10,12}" title="10 или 12 цифр" required>
+                <input type="text" id="c_phone" placeholder="+7 (999) 000-00-00" required>
+                <button type="submit" class="btn-primary">+ Зарегистрировать клиента</button>
+            </form>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>ФИО</th><th>ИНН</th><th>Телефон</th><th>Кол-во полисов</th><th>Действие</th></tr>
+                    </thead>
+                    <tbody id="clientsBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- СЕКЦИЯ 2: ПОЛИСЫ -->
+        <section class="panel tab-section" id="sec-policies">
+            <div class="panel-header">
+                <h2>2. Страховые полисы </h2>
+                <div class="filter-group">
+                    <select id="filterPolicyValidity" class="filter-input">
+                        <option value="ALL">Все состояния</option>
+                        <option value="VALID">Только действующие</option>
+                        <option value="EXPIRED">Только истёкшие</option>
+                    </select>
+                    <select id="filterPolicyStatus" class="filter-input">
+                        <option value="ALL">Все оценки</option>
+                        <option value="APPROVED">Одобренные</option>
+                        <option value="PENDING_SCORING">В очереди</option>
+                        <option value="REJECTED">Отказ</option>
+                    </select>
+                </div>
+            </div>
+            <form id="policyForm" class="inline-form">
+                <select id="p_client" required></select>
+                <select id="p_type">
+                    <option value="КАСКО\ОСАГО">КАСКО / ОСАГО</option>
+                    <option value="НЕДВИЖИМОСТЬ">Недвижимость</option>
+                    <option value="ДМС">ДМС</option>
+                    <option value="ЖИЗНЬ">Страхование жизни</option>
+                </select>
+                <input type="number" id="p_base" placeholder="Базовая ставка (₽)" min="1000" step="500" required>
+                <input type="date" id="p_expires" title="Дата истечения полиса" required>
+                <button type="submit" class="btn-primary">+ Оформить полис</button>
+            </form>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>Клиент</th><th>Тип страхования</th><th>База (₽)</th><th>Риск-коэф.</th><th>Итоговая премия</th><th>Действителен до</th><th>Статус оценки</th><th></th></tr>
+                    </thead>
+                    <tbody id="policiesBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- СЕКЦИЯ 3: УБЫТКИ -->
+        <section class="panel tab-section" id="sec-claims">
+            <div class="panel-header">
+                <h2>3. Страховые выплаты</h2>
+                <select id="filterClaimStatus" class="filter-input">
+                    <option value="ALL">Все статусы</option>
+                    <option value="PAID_PARTIAL">Частичная выплата</option>
+                    <option value="DENIED_CLAUSE">Отказ</option>
+                    <option value="UNDER_REVIEW">На рассмотрении</option>
+                </select>
+            </div>
+            <form id="claimForm" class="inline-form">
+                <select id="cl_policy" required></select>
+                <input type="text" id="cl_desc" placeholder="Причина обращения" required class="flex-grow">
+                <input type="number" id="cl_req" placeholder="Запрошено (₽)" min="1000" step="1000" required>
+                <button type="submit" class="btn-primary">+ Добавить Выплату</button>
+            </form>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>Полис и Клиент</th><th>Описание</th><th>Запрошено</th><th>Одобрено к выплате</th><th>Прибыль</th><th>Статус</th><th></th></tr>
+                    </thead>
+                    <tbody id="claimsBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <div id="toast" class="toast hidden"></div>
+    <script src="/app.js"></script>
+</body>
+</html>

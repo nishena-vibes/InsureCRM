@@ -1,0 +1,59 @@
+name: InsureCRM CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # ЭТАП 1: ТЕСТИРОВАНИЕ И СБОРКА (CI)
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Lint & Syntax Check (Backend & Worker)
+        run: |
+          pip install ruff
+          # Ищем синтаксические ошибки и забытые импорты
+          ruff check backend/ --select=E9,F63,F7,F82
+          python -m py_compile backend/main.py backend/worker.py
+
+      - name: Validate docker-compose.yml
+        run: docker compose config -q
+
+      - name: Test Docker Build
+        run: docker compose build backend worker
+
+      - name: Integration Smoke Test
+        run: |
+          docker compose up -d
+          echo "Ожидание старта контейнеров и RabbitMQ..."
+          sleep 12
+          docker compose ps
+          # Проверяем, что proxy -> backend -> db реально отвечают JSON-ом
+          curl -f http://localhost:8080/api/dashboard
+          # Проверяем, что proxy -> frontend отдаёт статику
+          curl -f -I http://localhost:8080/styles.css
+          docker compose down -v
+
+  # ЭТАП 2: АВТОДЕПЛОЙ НА СЕРВЕР (CD)
+  deploy:
+    needs: test-and-build
+    # Деплоим только при пуше напрямую в main (не на Pull Request'ах)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+        - name: Checkout latest code
+          uses: actions/checkout@v4
+        - name: Update local Docker stack
+          run: |
+            docker compose up -d --build --remove-orphans
+            docker image prune -f
