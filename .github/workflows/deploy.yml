@@ -24,7 +24,7 @@ jobs:
           pip install ruff
           # Ищем синтаксические ошибки и забытые импорты
           ruff check backend/ --select=E9,F63,F7,F82
-          python -m py_compile backend/main.py backend/worker.py
+          python -m py_compile backend/main.py worker/worker.py
 
       - name: Validate docker-compose.yml
         run: docker compose config -q
