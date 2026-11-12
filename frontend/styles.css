@@ -180,3 +180,53 @@ tr:hover td { background: #f8fafc; }
     justify-content: flex-end;
     align-items: center;
 }
+/* Авторизация и профиль в шапке */
+.user-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+}
+.employee-name {
+    color: #cbd5e1;
+    font-weight: 600;
+}
+.btn-logout {
+    background: #334155;
+    color: #fff;
+    border: 1px solid #475569;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+.btn-logout:hover { background: #b91c1c; border-color: #b91c1c; }
+
+.login-wrapper {
+    max-width: 380px;
+    margin: 70px auto;
+    padding: 0 16px;
+}
+.login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+}
+.login-card h2 { font-size: 18px; margin-bottom: 4px; }
+.login-subtitle { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+.login-form { display: flex; flex-direction: column; gap: 10px; }
+.login-hint {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+}
+.login-hint code {
+    background: #e2e8f0;
+    color: var(--text);
+    padding: 1px 5px;
+    border-radius: 3px;
+}

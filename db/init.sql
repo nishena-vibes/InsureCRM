@@ -43,3 +43,14 @@ INSERT INTO policies (client_id, policy_type, base_premium, risk_multiplier, sta
 INSERT INTO claims (policy_id, description, requested_amount, approved_payout, status) VALUES
 (1, 'ДТП на парковке, помято крыло', 65000.00, 18500.00, 'PAID_PARTIAL'),
 (2, 'Затопили соседи сверху', 120000.00, 0.00, 'DENIED_CLAUSE');
+
+
+-- 4. Таблица сотрудников страховой компании
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    full_name VARCHAR(120) NOT NULL,
+    role VARCHAR(40) NOT NULL,
+    password_hash VARCHAR(128) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

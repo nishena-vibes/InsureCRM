@@ -4,12 +4,32 @@ let state = {
     claims: []
 };
 
+let authToken = localStorage.getItem('crm_token') || null;
+let currentUser = JSON.parse(localStorage.getItem('crm_user') || 'null');
+let syncInterval = null;
+
 let lastClientsSignature = "";
 let lastApprovedSignature = "";
 
+const POLICY_TYPE_LABELS = {
+    "AUTO": "КАСКО / ОСАГО",
+    "PROPERTY": "Недвижимость",
+    "HEALTH": "ДМС",
+    "LIFE": "Жизнь"
+};
+
+const STATUS_LABELS = {
+    "APPROVED": "Одобрен",
+    "PENDING_SCORING": "В очереди",
+    "REJECTED_HIGH_RISK": "Отказ (риск)",
+    "REJECTED": "Отказ",
+    "PAID_PARTIAL": "Частичная выплата",
+    "DENIED_CLAUSE": "Отказ",
+    "UNDER_REVIEW": "На рассмотрении"
+};
+
 const fmtMoney = (val) => Number(val).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽';
 
-// По умолчанию ставим срок действия полиса +1 год от сегодня
 function setDefaultExpiryDate() {
     const nextYear = new Date();
     nextYear.setFullYear(nextYear.getFullYear() + 1);
@@ -24,9 +44,88 @@ function showToast(msg, isError = false) {
     setTimeout(() => t.classList.add('hidden'), 3000);
 }
 
+// Единая обёртка для всех запросов к API с токеном сотрудника
+async function apiFetch(url, options = {}) {
+    const headers = { ...(options.headers || {}) };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401) {
+        logout("Сессия истекла, войдите снова");
+        throw new Error("Unauthorized");
+    }
+    return res;
+}
+
+function updateAuthUI() {
+    const loginOverlay = document.getElementById('loginOverlay');
+    const appContainer = document.getElementById('appContainer');
+    const userBar = document.getElementById('userBar');
+    const employeeName = document.getElementById('employeeName');
+
+    if (authToken && currentUser) {
+        loginOverlay.classList.add('hidden');
+        appContainer.classList.remove('hidden');
+        userBar.classList.remove('hidden');
+        employeeName.textContent = currentUser.full_name;
+        fetchDashboard();
+        if (!syncInterval) {
+            syncInterval = setInterval(fetchDashboard, 2000);
+        }
+    } else {
+        loginOverlay.classList.remove('hidden');
+        appContainer.classList.add('hidden');
+        userBar.classList.add('hidden');
+        if (syncInterval) {
+            clearInterval(syncInterval);
+            syncInterval = null;
+        }
+    }
+}
+
+function logout(msg = "Вы вышли из системы") {
+    authToken = null;
+    currentUser = null;
+    localStorage.removeItem('crm_token');
+    localStorage.removeItem('crm_user');
+    updateAuthUI();
+    showToast(msg);
+}
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = document.getElementById('loginUser').value;
+    const password = document.getElementById('loginPass').value;
+
+    const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+    });
+
+    if (!res.ok) {
+        const err = await res.json();
+        showToast(err.detail || 'Ошибка входа', true);
+        return;
+    }
+
+    const data = await res.json();
+    authToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem('crm_token', authToken);
+    localStorage.setItem('crm_user', JSON.stringify(currentUser));
+    e.target.reset();
+    showToast(`Добро пожаловать, ${currentUser.full_name}`);
+    updateAuthUI();
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => logout());
+
 async function fetchDashboard() {
+    if (!authToken) return;
     try {
-        const res = await fetch('/api/dashboard');
+        const res = await apiFetch('/api/dashboard');
         if (!res.ok) return;
         state = await res.json();
         renderAll();
@@ -76,7 +175,9 @@ function renderClients() {
             <td>${c.tax_id}</td>
             <td>${c.phone}</td>
             <td>${policyCounts[c.id] || 0} шт.</td>
-            <td><button class="btn-del" onclick="deleteItem('/api/clients/${c.id}', 'Клиент и связанные полисы удалены')">X</button></td>
+            <td class="actions-cell">
+                <button class="btn-del" title="Удалить клиента" onclick="deleteItem('/api/clients/${c.id}', 'Клиент и связанные полисы удалены')">X</button>
+            </td>
         </tr>
     `).join('');
 }
@@ -101,29 +202,34 @@ function renderPolicies() {
             ? `<span class="badge EXPIRED_TAG">ИСТЁК</span>`
             : `<span class="badge VALID_TAG">АКТИВЕН</span>`;
 
-        // Для истёкших полисов даем кнопку продления, для активных — обычное удаление
-        const actionBtn = p.is_expired
+        const renewBtn = p.is_expired
             ? `<button class="btn-renew" onclick="renewPolicy(${p.id})">Продлить</button>`
-            : `<button class="btn-del" onclick="deleteItem('/api/policies/${p.id}', 'Полис удалён')">X</button>`;
+            : '';
+
+        const typeLabel = POLICY_TYPE_LABELS[p.policy_type] || p.policy_type;
+        const statusLabel = STATUS_LABELS[p.status] || p.status;
 
         return `
             <tr class="${p.is_expired ? 'row-expired' : ''}">
                 <td>#${p.id}</td>
                 <td>${p.client_name} <small>(ID: ${p.client_id})</small></td>
-                <td><strong>${p.policy_type}</strong></td>
+                <td><strong>${typeLabel}</strong></td>
                 <td>${fmtMoney(p.base_premium)}</td>
                 <td>x${p.risk_multiplier}</td>
                 <td><strong>${fmtMoney(finalPrice)}</strong></td>
                 <td>${p.expires_at} ${validityBadge}</td>
-                <td><span class="badge ${p.status}">${p.status}</span></td>
-                <td>${actionBtn}</td>
+                <td><span class="badge ${p.status}">${statusLabel}</span></td>
+                <td class="actions-cell">
+                    ${renewBtn}
+                    <button class="btn-del" title="Удалить полис" onclick="deleteItem('/api/policies/${p.id}', 'Полис удалён')">X</button>
+                </td>
             </tr>
         `;
     }).join('');
 }
 
 async function renewPolicy(id) {
-    const res = await fetch(`/api/policies/${id}/renew`, { method: 'POST' });
+    const res = await apiFetch(`/api/policies/${id}/renew`, { method: 'POST' });
     if (!res.ok) {
         const err = await res.json();
         showToast(err.detail || 'Ошибка продления', true);
@@ -139,16 +245,21 @@ function renderClaims() {
 
     document.getElementById('claimsBody').innerHTML = filtered.map(cl => {
         const saved = cl.requested_amount - cl.approved_payout;
+        const typeLabel = POLICY_TYPE_LABELS[cl.policy_type] || cl.policy_type;
+        const statusLabel = STATUS_LABELS[cl.status] || cl.status;
+
         return `
             <tr>
                 <td>#${cl.id}</td>
-                <td>Полис #${cl.policy_id} (${cl.policy_type} &bull; ${cl.client_name})</td>
+                <td>Полис #${cl.policy_id} (${typeLabel} &bull; ${cl.client_name})</td>
                 <td>${cl.description}</td>
                 <td>${fmtMoney(cl.requested_amount)}</td>
                 <td><strong>${fmtMoney(cl.approved_payout)}</strong></td>
                 <td class="text-success">+${fmtMoney(saved)}</td>
-                <td><span class="badge ${cl.status}">${cl.status}</span></td>
-                <td><button class="btn-del" onclick="deleteItem('/api/claims/${cl.id}', 'Запись об убытке удалена')">X</button></td>
+                <td><span class="badge ${cl.status}">${statusLabel}</span></td>
+                <td class="actions-cell">
+                    <button class="btn-del" title="Удалить выплату" onclick="deleteItem('/api/claims/${cl.id}', 'Запись об убытке удалена')">X</button>
+                </td>
             </tr>
         `;
     }).join('');
@@ -163,21 +274,21 @@ function updateSelects() {
         ).join('');
     }
 
-    // В списке для подачи убытка оставляем ТОЛЬКО одобренные И не истёкшие полисы
     const approvedValid = state.policies.filter(p => p.status === 'APPROVED' && !p.is_expired);
     const aSig = approvedValid.map(p => `${p.id}_${p.is_expired}`).join(',');
     if (aSig !== lastApprovedSignature) {
         lastApprovedSignature = aSig;
         document.getElementById('cl_policy').innerHTML = approvedValid.length
-            ? approvedValid.map(p =>
-                `<option value="${p.id}">Полис #${p.id} [${p.policy_type}] — ${p.client_name} (до ${p.expires_at})</option>`
-              ).join('')
+            ? approvedValid.map(p => {
+                const typeLabel = POLICY_TYPE_LABELS[p.policy_type] || p.policy_type;
+                return `<option value="${p.id}">Полис #${p.id} [${typeLabel}] — ${p.client_name} (до ${p.expires_at})</option>`;
+              }).join('')
             : `<option value="" disabled selected>Нет актуальных одобренных полисов</option>`;
     }
 }
 
 async function postData(url, payload, form, successMsg) {
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -194,7 +305,7 @@ async function postData(url, payload, form, successMsg) {
 }
 
 async function deleteItem(url, msg) {
-    await fetch(url, { method: 'DELETE' });
+    await apiFetch(url, { method: 'DELETE' });
     showToast(msg);
     fetchDashboard();
 }
@@ -249,5 +360,4 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 });
 
 setDefaultExpiryDate();
-fetchDashboard();
-setInterval(fetchDashboard, 2000);
+updateAuthUI();

@@ -12,10 +12,28 @@
             <div>
                 <h1>InsureCRM</h1>
             </div>
+            <div id="userBar" class="user-bar hidden">
+                <span id="employeeName" class="employee-name"></span>
+                <button id="logoutBtn" class="btn-logout">Выйти</button>
+            </div>
         </div>
     </header>
 
-    <main class="container">
+    <!-- ЭКРАН АВТОРИЗАЦИИ СОТРУДНИКА -->
+    <div id="loginOverlay" class="login-wrapper">
+        <div class="login-card">
+            <h2>Вход в систему</h2>
+            <p class="login-subtitle">Служебный терминал сотрудника страховой компании</p>
+            <form id="loginForm" class="login-form">
+                <input type="text" id="loginUser" placeholder="Логин сотрудника" required autocomplete="username">
+                <input type="password" id="loginPass" placeholder="Пароль" required autocomplete="current-password">
+                <button type="submit" class="btn-primary">Войти в терминал</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ОСНОВНОЙ ИНТЕРФЕЙС CRM (скрыт до входа) -->
+    <main id="appContainer" class="container hidden">
         <section class="stats-grid">
             <div class="stat-card">
                 <span class="stat-label">Всего клиентов</span>
@@ -49,7 +67,7 @@
         <!-- СЕКЦИЯ 1: КЛИЕНТЫ -->
         <section class="panel tab-section" id="sec-clients">
             <div class="panel-header">
-                <h2>1. Таблица Клиентов</h2>
+                <h2>1. Таблица клиентов</h2>
                 <input type="search" id="searchClient" placeholder="Поиск по ФИО или ИНН..." class="filter-input">
             </div>
             <form id="clientForm" class="inline-form">
@@ -61,7 +79,7 @@
             <div class="table-wrap">
                 <table>
                     <thead>
-                        <tr><th>ID</th><th>ФИО</th><th>ИНН</th><th>Телефон</th><th>Кол-во полисов</th><th>Действие</th></tr>
+                        <tr><th>ID</th><th>ФИО</th><th>ИНН</th><th>Телефон</th><th>Кол-во полисов</th><th></th></tr>
                     </thead>
                     <tbody id="clientsBody"></tbody>
                 </table>
@@ -71,7 +89,7 @@
         <!-- СЕКЦИЯ 2: ПОЛИСЫ -->
         <section class="panel tab-section" id="sec-policies">
             <div class="panel-header">
-                <h2>2. Страховые полисы </h2>
+                <h2>2. Страховые полисы</h2>
                 <div class="filter-group">
                     <select id="filterPolicyValidity" class="filter-input">
                         <option value="ALL">Все состояния</option>
@@ -82,17 +100,17 @@
                         <option value="ALL">Все оценки</option>
                         <option value="APPROVED">Одобренные</option>
                         <option value="PENDING_SCORING">В очереди</option>
-                        <option value="REJECTED">Отказ</option>
+                        <option value="REJECTED_HIGH_RISK">Отказ</option>
                     </select>
                 </div>
             </div>
             <form id="policyForm" class="inline-form">
                 <select id="p_client" required></select>
                 <select id="p_type">
-                    <option value="КАСКО\ОСАГО">КАСКО / ОСАГО</option>
-                    <option value="НЕДВИЖИМОСТЬ">Недвижимость</option>
-                    <option value="ДМС">ДМС</option>
-                    <option value="ЖИЗНЬ">Страхование жизни</option>
+                    <option value="AUTO">КАСКО / ОСАГО</option>
+                    <option value="PROPERTY">Недвижимость</option>
+                    <option value="HEALTH">ДМС</option>
+                    <option value="LIFE">Страхование жизни</option>
                 </select>
                 <input type="number" id="p_base" placeholder="Базовая ставка (₽)" min="1000" step="500" required>
                 <input type="date" id="p_expires" title="Дата истечения полиса" required>
@@ -115,7 +133,7 @@
                 <select id="filterClaimStatus" class="filter-input">
                     <option value="ALL">Все статусы</option>
                     <option value="PAID_PARTIAL">Частичная выплата</option>
-                    <option value="DENIED_CLAUSE">Отказ</option>
+                    <option value="DENIED_CLAUSE_4_2">Отказ</option>
                     <option value="UNDER_REVIEW">На рассмотрении</option>
                 </select>
             </div>
@@ -123,7 +141,7 @@
                 <select id="cl_policy" required></select>
                 <input type="text" id="cl_desc" placeholder="Причина обращения" required class="flex-grow">
                 <input type="number" id="cl_req" placeholder="Запрошено (₽)" min="1000" step="1000" required>
-                <button type="submit" class="btn-primary">+ Добавить Выплату</button>
+                <button type="submit" class="btn-primary">+ Добавить выплату</button>
             </form>
             <div class="table-wrap">
                 <table>
